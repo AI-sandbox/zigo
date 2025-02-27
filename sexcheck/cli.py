@@ -48,7 +48,7 @@ def main():
     t0 = time.time()
     predictions = run_inference(output1, MODEL_PATH)
     t1 = time.time() - t0
-    print(f"run_inference: {t1:.4f} segundos. Resultado: {predictions.shape}")
+    print(f"run_inference: {t1:.4f} segundos. Resultado: {len(predictions)}")
     
     with open(args.output, "w") as f:
         f.write(str(predictions))
