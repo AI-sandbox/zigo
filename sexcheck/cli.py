@@ -15,7 +15,7 @@ def main():
         required=True,
         help="Ruta al archivo de entrada genómico (.vcf, .vcf.gz, .pgen, .bed, etc.)"
     )
-    parser.add_argument(
+    parser.add_argument( # path
         "-o", "--output",
         default="results.txt",
         help="Ruta del archivo de salida para guardar los resultados"
@@ -30,6 +30,8 @@ def main():
         print(f"[ERROR] No se pudo leer el archivo {args.input}: {e}", file=sys.stderr)
         sys.exit(1)
     t1 = time.time() - t0
+
+    ## Warning / Sanity Check de ids rsXXX...
 
     print(f"Se han leído {qsnpobj.n_snps} SNPs y {qsnpobj.n_samples} muestras.")
     print("Ejemplos de IDs de SNP:", qsnpobj.variants_id[:5])
@@ -53,6 +55,10 @@ def main():
     with open(args.output, "w") as f:
         f.write(str(predictions))
     print(f"Resultados guardados en: {args.output}")
+
+    # .log ## llibreria logging ### info warning debugging error
+    # dicc json with stats (% overlap, nsnps, nan percentage, ...)
+    # .sexcheck
 
 if __name__ == '__main__':
     main()
