@@ -11,7 +11,7 @@ def load_reference_data():
 
 def preprocess(snpobj: SNPObject) -> np.ndarray:
     X = snpobj.calldata_gt
-    X = np.where(X == -9, np.nan, X)
+    X = np.where(X == -9, np.nan, X) # != 0 and != 1
     X = X.sum(axis=2).T
     return X
 
