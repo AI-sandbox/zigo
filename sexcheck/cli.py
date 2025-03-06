@@ -3,10 +3,33 @@ import os
 import sys
 import time
 import numpy as np
+import logging
 import snputils as su
 
 from .transform import transform_input
 from .inference import run_inference
+
+def setup_logging(output_dir):
+    """Configura el sistema de logging."""
+    log_file = os.path.join(output_dir, "sexcheck.log")
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s - %(levelname)s - %(message)s",
+        handlers=[
+            logging.FileHandler(log_file),
+            logging.StreamHandler(sys.stdout)
+        ]
+    )
+    return logging.getLogger(__name__)
+
+def check_rs_format(variants_id):
+    """Verifica cuántos IDs de SNPs tienen formato rsXXXX."""
+    if variants_id is None or len(variants_id) == 0:
+        return 0.0
+
+    count_rs = sum(1 for vid in variants_id if isinstance(vid, str) and vid.startswith("rs") and vid[2:].isdigit())
+    percentage = (count_rs / len(variants_id)) * 100
+    return percentage
 
 def main():
     parser = argparse.ArgumentParser()
@@ -15,50 +38,54 @@ def main():
         required=True,
         help="Ruta al archivo de entrada genómico (.vcf, .vcf.gz, .pgen, .bed, etc.)"
     )
-    parser.add_argument( # path
+    parser.add_argument(
         "-o", "--output",
-        default="results.txt",
-        help="Ruta del archivo de salida para guardar los resultados"
+        required=True,
+        help="Directorio donde se guardarán los resultados"
     )
     args = parser.parse_args()
 
-    print(f"Leyendo archivo de entrada: {args.input}")
+    output_dir = os.path.abspath(args.output)
+    os.makedirs(output_dir, exist_ok=True)
+    logger = setup_logging(output_dir)
+
+    # Load
+    logger.info(f"Leyendo archivo de entrada: {args.input}")
     t0 = time.time()
     try:
         qsnpobj = su.read_snp(args.input)
     except Exception as e:
-        print(f"[ERROR] No se pudo leer el archivo {args.input}: {e}", file=sys.stderr)
+        logger.error(f"No se pudo leer el archivo {args.input}: {e}")
         sys.exit(1)
     t1 = time.time() - t0
+    logger.info(f"Archivo leído en {t1:.4f} segundos.")
+    logger.info(f"Se han leído {qsnpobj.n_snps} SNPs y {qsnpobj.n_samples} muestras.")
 
-    ## Warning / Sanity Check de ids rsXXX...
+    # rsID: Sanity Check
+    rs_percentage = check_rs_format(qsnpobj.variants_id)
+    logger.info(f"Se han detectado un {rs_percentage:.2f}% de IDs en formato rs.")
+    if rs_percentage < 50:
+        logger.warning("Menos del 50% de los SNPs tienen un identificador en formato rsXXXX. "
+                       "Revisar la calidad de los datos de entrada.")
 
-    print(f"Se han leído {qsnpobj.n_snps} SNPs y {qsnpobj.n_samples} muestras.")
-    print("Ejemplos de IDs de SNP:", qsnpobj.variants_id[:5])
-    print("Ejemplos de alelos REF:", qsnpobj.variants_ref[:5])
-    print("Forma de la matriz de genotipos (calldata_gt):", qsnpobj.calldata_gt.shape)
-    print(f"read_snp: {t1:.4f} segundos.")
-    
-    # Ejecutar transform_input1 y medir tiempo
+    # Transform
     t0 = time.time()
     output1 = transform_input(qsnpobj)
     t1 = time.time() - t0
-    print(f"transform_input: {t1:.4f} segundos. Resultado: {output1.shape}")
-    
-    # Utilizar, por ejemplo, output1 para la inferencia (deben ser equivalentes)
+    logger.info(f"Transformación de input completada en {t1:.4f} segundos. Resultado: {output1.shape}")
+
+    # Inference
     MODEL_PATH = os.path.join(os.path.dirname(__file__), "models", "model.onnx")
     t0 = time.time()
-    predictions = run_inference(output1, MODEL_PATH)
+    predictions = run_inference(output1, MODEL_PATH, sample_ids=qsnpobj.samples)
     t1 = time.time() - t0
-    print(f"run_inference: {t1:.4f} segundos. Resultado: {len(predictions)}")
-    
-    with open(args.output, "w") as f:
-        f.write(str(predictions))
-    print(f"Resultados guardados en: {args.output}")
+    logger.info(f"Inferencia completada en {t1:.4f} segundos. Resultado: {len(predictions)}")
 
-    # .log ## llibreria logging ### info warning debugging error
-    # dicc json with stats (% overlap, nsnps, nan percentage, ...)
-    # .sexcheck
+    # Save
+    output_file = os.path.join(output_dir, "results.sexcheck")
+    with open(output_file, "w") as f:
+        f.write(str(predictions))
+    logger.info(f"Resultados guardados en: {output_file}")
 
 if __name__ == '__main__':
     main()
