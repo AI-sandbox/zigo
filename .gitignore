@@ -175,3 +175,4 @@ cython_debug/
 # Outputs
 output.txt
 results.sexcheck
+info.json
