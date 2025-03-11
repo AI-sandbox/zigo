@@ -24,7 +24,7 @@ def setup_logging(output_dir: str) -> logging.Logger:
     )
     return logging.getLogger(__name__)
 
-def process_ped(ped_path: str, samples: List[str], logger: logging.Logger) -> List[str]:
+def process_ped(ped_path: str, logger: logging.Logger) -> dict:
     """Processes the PED file, ensuring required columns exist and reordering samples."""
     logger.info(f"Reading PED file: {ped_path}")
     try:
@@ -35,12 +35,10 @@ def process_ped(ped_path: str, samples: List[str], logger: logging.Logger) -> Li
             logger.error("The PED file must contain 'Individual ID' and 'Gender' columns.")
             sys.exit(1)
         
-        ped_df = ped_df.set_index("Individual ID").reindex(samples)
+        ped_dict = ped_df.set_index("Individual ID")["Gender"].to_dict()
         
-        if ped_df.isnull().any().any():
-            logger.warning("Some individuals in the PED file were not found in the input samples.")
-        
-        return ped_df["Gender"].tolist()
+        return {str(k): str(v) for k, v in ped_dict.items() if v in [1, 2]}
+    
     except Exception as e:
         logger.error(f"Error processing PED file: {e}")
         sys.exit(1)
@@ -88,7 +86,7 @@ def main() -> None:
     logger.info(f"File loaded in {time.time() - start_time:.4f} seconds.")
     logger.info(f"Loaded {snp_obj.n_snps} SNPs and {snp_obj.n_samples} samples.")
 
-    ped_sex = process_ped(args.ped, snp_obj.samples, logger) if args.ped else None
+    ped_sex = process_ped(args.ped, logger) if args.ped else None
 
     rs_percentage = check_rs_format(snp_obj.variants_id)
     logger.info(f"{rs_percentage:.2f}% of SNP IDs follow the rsXXXX format.")
@@ -100,7 +98,6 @@ def main() -> None:
     logger.info(f"Input transformation completed in {time.time() - start_time:.4f} seconds.")
     logger.info(f"Using {stats['num_snps_used']} out of {stats['num_snps_input']} SNPs ({stats['overlap_percentage']:.2f}% overlap).")
     logger.info(f"Initial null percentage: {stats['initial_null_percentage']:.2f}%, Final null percentage: {stats['final_null_percentage']:.2f}%.")
-
     
     stats_path = os.path.join(output_dir, "info.json")
     with open(stats_path, "w") as f:
@@ -109,13 +106,18 @@ def main() -> None:
 
     model_path = os.path.join(os.path.dirname(__file__), "models", "model.onnx")
     start_time = time.time()
-    predictions = run_inference(data=transformed_data, model_path=model_path, sample_ids=snp_obj.samples, pedsex=ped_sex)
+    sexcheck, nosex = run_inference(data=transformed_data, model_path=model_path, sample_ids=snp_obj.samples, pedsex=ped_sex)
     logger.info(f"Inference completed in {time.time() - start_time:.4f} seconds.")
 
     output_file = os.path.join(output_dir, "results.sexcheck")
     with open(output_file, "w") as f:
-        f.write(str(predictions))
+        f.write(str(sexcheck))
     logger.info(f"Results saved to: {output_file}")
+
+    nosex_file = os.path.join(output_dir, "results.nosex")
+    with open(nosex_file, "w") as f:
+        f.write(nosex)
+    logger.info(f"No sex information saved to: {nosex_file}")
 
 if __name__ == '__main__':
     main()

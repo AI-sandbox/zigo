@@ -173,6 +173,7 @@ cython_debug/
 # ----- Extra
 
 # Outputs
-output.txt
+sexcheck.log
 results.sexcheck
+results.nosex
 info.json
