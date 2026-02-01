@@ -1,4 +1,4 @@
-# sex-check
+# Zigo: Sex Checking by Zigosity Distributions
 
 A command-line tool for genetic sex prediction from genomic data. This tool uses machine learning to predict genetic sex from SNP data and can compare predictions with provided PED files.
 
@@ -56,7 +56,7 @@ sexcheck -i INPUT_FILE -o OUTPUT_DIR [--ped PED_FILE]
 
 ```bash
 sexcheck -i samples.vcf.gz -o results --ped samples.ped
-```bash
+```
 
 ## Dependencies
 

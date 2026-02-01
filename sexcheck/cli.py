@@ -4,12 +4,12 @@ import sys
 import time
 import logging
 import json
-from typing import List, Optional
 import pandas as pd
-import snputils as su
 
-from .transform import transform_input
-from .inference import run_inference
+from sexcheck.reader import read_vcf
+from sexcheck.inference import run_inference
+
+MODEL_PATH = os.path.join(os.path.dirname(__file__), "models", "zigo.json")
 
 def setup_logging(output_dir: str) -> logging.Logger:
     """Configures the logging system."""
@@ -43,14 +43,6 @@ def process_ped(ped_path: str, logger: logging.Logger) -> dict:
         logger.error(f"Error processing PED file: {e}")
         sys.exit(1)
 
-def check_rs_format(variants_id: Optional[List[str]]) -> float:
-    """Calculates the percentage of SNP IDs that follow the rsXXXX format."""
-    if variants_id is None or len(variants_id) == 0:
-        return 0.0
-    
-    count_rs = sum(vid.startswith("rs") and vid[2:].isdigit() for vid in variants_id if isinstance(vid, str))
-    return (count_rs / len(variants_id)) * 100
-
 def main() -> None:
     parser = argparse.ArgumentParser()
     
@@ -76,43 +68,45 @@ def main() -> None:
     os.makedirs(output_dir, exist_ok=True)
     logger = setup_logging(output_dir)
 
-    # logger.info(f"Reading input file: {args.input}")
+    # Use fast C-based VCF processor with normalization
+    input_file = args.input
     start_time = time.time()
+    
     try:
-        snp_obj = su.read_snp(args.input)
+        transformed_data, vcf_data, stats = read_vcf(input_file)
     except Exception as e:
-        logger.error(f"Failed to read {args.input}: {e}")
+        logger.error(f"Failed to process VCF: {e}")
         sys.exit(1)
-    logger.info(f"File loaded in {time.time() - start_time:.4f} seconds.")
-    logger.info(f"Loaded {snp_obj.n_snps} SNPs and {snp_obj.n_samples} samples.")
-
-    ped_sex = process_ped(args.ped, logger) if args.ped else None
-
-    rs_percentage = check_rs_format(snp_obj.variants_id)
+    
+    logger.info(f"File processed in {time.time() - start_time:.4f} seconds.")
+    logger.info(f"Loaded {stats['num_snps_input']} SNPs and {stats['num_samples']} samples.")
+    
+    sample_ids = vcf_data.samples
+    
+    rs_percentage = stats.get('rs_percentage', 0.0)
     logger.info(f"{rs_percentage:.2f}% of SNP IDs follow the rsXXXX format.")
     if rs_percentage < 50:
         logger.warning("Less than 50% of SNPs have rsXXXX identifiers. Check data quality.")
-
-    start_time = time.time()
-    transformed_data, stats = transform_input(snp_obj)
-    logger.info(f"Input transformation completed in {time.time() - start_time:.4f} seconds.")
+    
     logger.info(f"Using {stats['num_snps_used']} out of {stats['num_snps_input']} SNPs ({stats['overlap_percentage']:.2f}% overlap).")
     logger.info(f"Initial null percentage: {stats['initial_null_percentage']:.2f}%, Final null percentage: {stats['final_null_percentage']:.2f}%.")
+    
+    ped_sex = process_ped(args.ped, logger) if args.ped else None
     
     stats_path = os.path.join(output_dir, "info.json")
     with open(stats_path, "w") as f:
         json.dump(stats, f, indent=4)
     logger.info(f"Data statistics saved to: {stats_path}")
 
-    model_path = os.path.join(os.path.dirname(__file__), "models", "model.onnx")
     start_time = time.time()
-    sexcheck, nosex = run_inference(data=transformed_data, model_path=model_path, sample_ids=snp_obj.samples, pedsex=ped_sex)
+
+    sexcheck, nosex = run_inference(data=transformed_data, model_path=MODEL_PATH, sample_ids=sample_ids, pedsex=ped_sex)
     logger.info(f"Inference completed in {time.time() - start_time:.4f} seconds.")
 
-    output_file = os.path.join(output_dir, "results.sexcheck")
-    with open(output_file, "w") as f:
+    sexcheck_file = os.path.join(output_dir, "results.sexcheck")
+    with open(sexcheck_file, "w") as f:
         f.write(str(sexcheck))
-    logger.info(f"Results saved to: {output_file}")
+    logger.info(f"Results saved to: {sexcheck_file}")
 
     nosex_file = os.path.join(output_dir, "results.nosex")
     with open(nosex_file, "w") as f:
