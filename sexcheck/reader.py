@@ -9,6 +9,17 @@ from typing import Tuple, Dict, List
 logger = logging.getLogger(__name__)
 
 class VCFData:
+    """
+    Container for VCF file metadata.
+    
+    Attributes:
+        samples: List of sample identifiers
+        n_samples: Number of samples
+        n_snps: Number of SNPs processed
+        variants_id: List of variant IDs (reserved for future use)
+        variants_ref: List of reference alleles (reserved for future use)
+    """
+    
     def __init__(self, samples: List[str], n_samples: int, n_snps: int):
         self.samples = samples
         self.n_samples = n_samples
@@ -17,6 +28,14 @@ class VCFData:
         self.variants_ref = []
 
 def _ensure_processor_compiled() -> str:
+    """
+    Ensures the VCF processor C binary is compiled.
+    
+    Compiles the source if binary doesn't exist or is outdated.
+    
+    Returns:
+        Path to the compiled binary
+    """
     native_dir = os.path.join(os.path.dirname(__file__), "native")
     os.makedirs(native_dir, exist_ok=True)
     source = os.path.join(native_dir, "vcf_reader.c")
@@ -27,28 +46,29 @@ def _ensure_processor_compiled() -> str:
             return binary
 
     if not os.path.exists(source):
-        raise RuntimeError(f"No se encuentra {source}")
+        raise RuntimeError(f"Could not find {source}")
 
     cmd = ["gcc", "-O3", "-march=native", "-flto", "-funroll-loops", source, "-o", binary, "-lz"]
     try:
         subprocess.run(cmd, check=True, capture_output=True, text=True)
     except subprocess.CalledProcessError as e:
-        raise RuntimeError(f"Fallo compilando vcf_reader.c: {e.stderr}") from e
+        raise RuntimeError(f"Failed to compile vcf_reader.c: {e.stderr}") from e
     return binary
 
 def read_vcf(vcf_path: str) -> Tuple[np.ndarray, VCFData, Dict]:
     """
     Fast VCF processing using C implementation.
     
-    Directly processes VCF file into a normalized zygosity histogram.
+    Processes VCF file into a normalized zygosity histogram.
     
     Parameters:
         vcf_path: Path to VCF or VCF.gz file
     
     Returns:
-        histogram: Histogram data (n_samples, len(mode))
-        vcf_data: VCFData object with sample info
-        stats: Processing statistics
+        Tuple of (histogram, vcf_data, stats) where:
+            - histogram: Normalized zygosity counts (n_samples, 3)
+            - vcf_data: VCFData object with sample information
+            - stats: Dictionary with num_samples and num_snps_input
     """
     if not os.path.exists(vcf_path):
         raise FileNotFoundError(vcf_path)
@@ -71,12 +91,12 @@ def read_vcf(vcf_path: str) -> Tuple[np.ndarray, VCFData, Dict]:
             with open(vcf_path, "r") as fin:
                 proc = subprocess.run(cmd, stdin=fin, capture_output=True)
         if proc.returncode != 0:
-            raise RuntimeError(proc.stderr.decode("utf-8") if proc.stderr else "Error ejecutando processor")
+            raise RuntimeError(proc.stderr.decode("utf-8") if proc.stderr else "Error executing VCF processor")
 
         with open(data_file, "r") as f:
             lines = [ln.strip() for ln in f if ln.strip()]
         if len(lines) < 2:
-            raise ValueError("Sin datos tras procesar el VCF")
+            raise ValueError("No data after processing VCF")
 
         header = lines[0].split(",")
         samples, rows = [], []
@@ -99,14 +119,14 @@ def read_vcf(vcf_path: str) -> Tuple[np.ndarray, VCFData, Dict]:
                 if h[2] > h[0] and h[0] != 0:
                     h[0], h[2] = h[2], h[0]
 
-        # Stats JSON
+        # Load stats JSON
         try:
             with open(stats_file, "r") as f:
                 stats = json.load(f)
         except Exception:
-            stats = {"num_samples": len(samples), "num_snps_used": 0, "mode": mode}
+            stats = {"num_samples": len(samples), "num_snps_input": 0}
 
-        vcf_data = VCFData(samples=samples, n_samples=len(samples), n_snps=stats.get("num_snps_used", 0))
+        vcf_data = VCFData(samples=samples, n_samples=len(samples), n_snps=stats.get("num_snps_input", 0))
         return hist, vcf_data, stats
 
     finally:

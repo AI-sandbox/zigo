@@ -12,7 +12,15 @@ from sexcheck.inference import run_inference
 MODEL_PATH = os.path.join(os.path.dirname(__file__), "models", "zigo.json")
 
 def setup_logging(output_dir: str) -> logging.Logger:
-    """Configures the logging system."""
+    """
+    Configures the logging system.
+    
+    Parameters:
+        output_dir: Directory where log file will be saved
+    
+    Returns:
+        Configured logger instance
+    """
     log_file = os.path.join(output_dir, "sexcheck.log")
     logging.basicConfig(
         level=logging.INFO,
@@ -25,7 +33,16 @@ def setup_logging(output_dir: str) -> logging.Logger:
     return logging.getLogger(__name__)
 
 def process_ped(ped_path: str, logger: logging.Logger) -> dict:
-    """Processes the PED file, ensuring required columns exist and reordering samples."""
+    """
+    Processes the PED file, ensuring required columns exist.
+    
+    Parameters:
+        ped_path: Path to the PED file
+        logger: Logger instance for logging messages
+    
+    Returns:
+        Dictionary mapping sample IDs to sex labels (1 or 2)
+    """
     logger.info(f"Reading PED file: {ped_path}")
     try:
         ped_df = pd.read_csv(ped_path, sep="\t")
@@ -44,12 +61,17 @@ def process_ped(ped_path: str, logger: logging.Logger) -> dict:
         sys.exit(1)
 
 def main() -> None:
-    parser = argparse.ArgumentParser()
+    """
+    Main entry point for the sex-check command-line tool.
+    """
+    parser = argparse.ArgumentParser(
+        description="Sex inference from genomic data using zygosity distributions"
+    )
     
     parser.add_argument(
         "-i", "--input", 
         required=True, 
-        help="Path to the genomic input file (.vcf, .pgen, etc.)"
+        help="Path to the genomic input file (.vcf or .vcf.gz)"
     )
     parser.add_argument(
         "-o", "--output", 
@@ -82,21 +104,7 @@ def main() -> None:
     logger.info(f"Loaded {stats['num_snps_input']} SNPs and {stats['num_samples']} samples.")
     
     sample_ids = vcf_data.samples
-    
-    rs_percentage = stats.get('rs_percentage', 0.0)
-    logger.info(f"{rs_percentage:.2f}% of SNP IDs follow the rsXXXX format.")
-    if rs_percentage < 50:
-        logger.warning("Less than 50% of SNPs have rsXXXX identifiers. Check data quality.")
-    
-    logger.info(f"Using {stats['num_snps_used']} out of {stats['num_snps_input']} SNPs ({stats['overlap_percentage']:.2f}% overlap).")
-    logger.info(f"Initial null percentage: {stats['initial_null_percentage']:.2f}%, Final null percentage: {stats['final_null_percentage']:.2f}%.")
-    
     ped_sex = process_ped(args.ped, logger) if args.ped else None
-    
-    stats_path = os.path.join(output_dir, "info.json")
-    with open(stats_path, "w") as f:
-        json.dump(stats, f, indent=4)
-    logger.info(f"Data statistics saved to: {stats_path}")
 
     start_time = time.time()
 

@@ -9,9 +9,9 @@
 #define LINE_BUF 1048576
 
 typedef struct {
-    double z, o, t, n;            // 0/0, 0/1|1/0, 1/1, missing (diploide estándar)
-    // Contadores para el primer alelo (para haploides)
-    double f0, f1, fmiss;         // primer alelo: '0', '1' o '.'
+    double z, o, t, n;            // 0/0, 0/1|1/0, 1/1, missing (standard diploid)
+    // Counters for the first allele (for haploids)
+    double f0, f1, fmiss;         // first allele: '0', '1' or '.'
 } SampleCounts;
 
 static int split_tab(char *line, char **cols, int max_cols) {
@@ -34,13 +34,13 @@ static inline void parse_gt_and_update(const char *field, SampleCounts *sc) {
     while (field[i] && field[i] != ':' && i < (int)sizeof(gt)-1) { gt[i] = field[i]; i++; }
     gt[i] = '\0';
 
-    // Primer alelo (para posible haploidía)
+    // First allele (for possible haploidy)
     char a = gt[0];
     if (a == '0') sc->f0 += 1.0;
     else if (a == '1') sc->f1 += 1.0;
-    else sc->fmiss += 1.0; // incluye '.', o GT vacío/inesperado
+    else sc->fmiss += 1.0; // includes '.', or empty/unexpected GT
 
-    // Diploide estándar
+    // Standard diploid
     // Buscamos separador para segundo alelo
     char b = 0;
     for (int j = 1; gt[j]; ++j) {
@@ -60,18 +60,18 @@ static inline void parse_gt_and_update(const char *field, SampleCounts *sc) {
 
 static inline void trim_sample_inplace(char *s) {
     if (!s) return;
-    // Elimina CR/LF en cualquier sitio
+    // Remove CR/LF anywhere
     for (char *q = s; *q; ++q) {
         if (*q == '\r' || *q == '\n') *q = '\0';
     }
-    // Trim izquierda
+    // Trim left
     char *p = s;
     while (*p && isspace((unsigned char)*p)) p++;
-    // Trim derecha
+    // Trim right
     char *e = p + strlen(p);
     while (e > p && isspace((unsigned char)e[-1])) --e;
     *e = '\0';
-    // Compacta si hizo avance
+    // Compact if advanced
     if (p != s) memmove(s, p, (size_t)(e - p + 1));
 }
 
@@ -79,7 +79,7 @@ static void write_csv(const char *path, const char *mode, char **samples, int n_
     FILE *f = fopen(path, "w");
     if (!f) { fprintf(stderr, "Cannot open data file for write\n"); exit(2); }
 
-    // Cabecera: sample + columnas según 'mode' (z,o,t,n)
+    // Header: sample + columns according to 'mode' (z,o,t,n)
     fprintf(f, "sample");
     for (int i=0; mode[i]; ++i) fprintf(f, ",%c", mode[i]);
     fputc('\n', f);
@@ -87,7 +87,7 @@ static void write_csv(const char *path, const char *mode, char **samples, int n_
     for (int s=0; s<n_samples; ++s) {
         double z = C[s].z, o = C[s].o, t = C[s].t, n = C[s].n;
 
-        // Detección de haploidía “total”: sin llamadas diploides informativas
+        // Detection of "total" haploidy: no informative diploid calls
         if (z==0.0 && o==0.0 && t==0.0) {
             double A = C[s].f0;
             double B = C[s].f1;
@@ -98,10 +98,10 @@ static void write_csv(const char *path, const char *mode, char **samples, int n_
             n = N;
         }
 
-        // Normalizar si se solicita
+        // Normalize if requested
         if (normalize) {
             double denom = 0.0;
-            // Calcular denominador basándonos en lo que se va a exportar (mode)
+            // Calculate denominator based on what will be exported (mode)
             for (int i=0; mode[i]; ++i) {
                 char m = mode[i];
                 if (m=='z') denom += z;
@@ -118,12 +118,12 @@ static void write_csv(const char *path, const char *mode, char **samples, int n_
             }
         }
 
-        // --- SANEAR NOMBRE DE MUESTRA (evita salto de línea suelto) ---
+        // Clean sample name (avoids stray newlines)
         char *name = samples ? samples[s] : NULL;
         if (name) trim_sample_inplace(name);
         if (!name || name[0] == '\0') name = (char*)"UNKNOWN_SAMPLE";
 
-        // Una única línea: nombre + métricas
+        // Single line: name + metrics
         fprintf(f, "%s", name);
         for (int i=0; mode[i]; ++i) {
             char m = mode[i];
@@ -141,19 +141,13 @@ static void write_stats(const char *path, int n_samples, int n_snps, const char 
     if (!f) { fprintf(stderr, "Cannot open stats file for write\n"); exit(2); }
     fprintf(f, "{");
     fprintf(f, "\"num_samples\": %d,", n_samples);
-    fprintf(f, "\"num_snps_input\": %d,", n_snps);
-    fprintf(f, "\"num_snps_used\": %d,", n_snps);
-    fprintf(f, "\"overlap_percentage\": 0.0,");
-    fprintf(f, "\"rs_percentage\": 0.0,");
-    fprintf(f, "\"initial_null_percentage\": 0.0,");
-    fprintf(f, "\"final_null_percentage\": 0.0,");
-    fprintf(f, "\"mode\": \"%s\"", mode);
+    fprintf(f, "\"num_snps_input\": %d", n_snps);
     fprintf(f, "}\n");
     fclose(f);
 }
 
 int main(int argc, char **argv) {
-    // argv: mode normalize_flag data_csv stats_json [vcf.gz]
+    // argv: mode normalize data_csv stats_json [vcf.gz]
     if (argc != 5 && argc != 6) {
         fprintf(stderr, "Usage: %s <mode[zotn]> <normalize{0|1}> <out.csv> <stats.json> [vcf.gz]\n", argv[0]);
         return 1;
@@ -168,7 +162,7 @@ int main(int argc, char **argv) {
     char *line = (char*)malloc(LINE_BUF);
     if (!line) { fprintf(stderr, "OOM\n"); return 2; }
 
-    // Lectura de cabecera para obtener muestras
+    // Reading header to get samples
     int n_samples = 0;
     char **samples = NULL;
 
@@ -188,7 +182,7 @@ int main(int argc, char **argv) {
                 }
                 continue;
             } else {
-                // no había #CHROM
+                // no #CHROM found
                 gzclose(g);
                 fprintf(stderr, "Malformed VCF: missing #CHROM header\n");
                 return 2;
@@ -223,7 +217,7 @@ int main(int argc, char **argv) {
     SampleCounts *C = (SampleCounts*)calloc(n_samples, sizeof(SampleCounts));
     if (!C) { fprintf(stderr, "OOM\n"); return 2; }
 
-    // Segunda pasada: procesar variantes
+    // Second pass: process variants
     int n_snps = 0;
 
     if (use_gz) {
@@ -246,9 +240,9 @@ int main(int argc, char **argv) {
         gzclose(g);
     } else {
         FILE *in = stdin;
-        // Rebobinar no posible; reabrir stdin no trivial; asumimos lectura desde archivo redirigido por el caller (vcf_reader.py)
-        // vcf_reader.py abre el archivo y pasa el FILE* como stdin, por lo que esta fase llega ya justo después de #CHROM.
-        // Aquí simplemente seguimos leyendo:
+        // Rewinding not possible; reopening stdin not trivial; we assume reading from file redirected by caller (vcf_reader.py)
+        // vcf_reader.py opens the file and passes the FILE* as stdin, so this phase arrives just after #CHROM.
+        // Here we simply continue reading:
         while (fgets(line, LINE_BUF, in)) {
             if (line[0] == '#') continue;
             char *cols[2048];
@@ -264,7 +258,7 @@ int main(int argc, char **argv) {
     write_csv(out_csv, mode, samples, n_samples, C, n_snps, normalize);
     write_stats(out_stats, n_samples, n_snps, mode);
 
-    // Limpieza
+    // Cleaning
     for (int i=0;i<n_samples;i++) free(samples[i]);
     free(samples);
     free(C);

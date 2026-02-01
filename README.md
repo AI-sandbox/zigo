@@ -1,6 +1,6 @@
 # Zigo: Sex Checking by Zigosity Distributions
 
-A command-line tool for genetic sex prediction from genomic data. This tool uses machine learning to predict genetic sex from SNP data and can compare predictions with provided PED files.
+A command-line tool for sex inference from genomic data. This tool uses a distilled polynomial equation to predict genetic sex from SNP zygosity distributions and can compare predictions with provided PED files.
 
 ## Installation
 
@@ -9,18 +9,13 @@ Installation instructions will be added soon
 ## Key Features
 
 - **Genetic Sex Prediction**: Accurately predicts genetic sex from genomic data using a machine learning model
-- **Multiple Input Formats**: Supports various genomic data formats through [snputils](https://github.com/AI-sandbox/snputils) including:
-  - VCF (.vcf, .vcf.gz)
-  - PLINK1 (.bed, .bim, .fam)
-  - PLINK2 (.pgen, .pvar, .psam)
 - **PED File Integration**: Optional comparison with provided sex information from PED files (requires "Individual ID" and "Gender" columns)
 - **Comprehensive Logging**: Detailed logs of the analysis process
-- **Performance Statistics**: Reports on SNP overlap, null percentages, and processing times
 
 ## Usage
 
 ```bash:sex-check/README.md
-sexcheck -i INPUT_FILE -o OUTPUT_DIR [--ped PED_FILE]
+sex-check -i INPUT_FILE -o OUTPUT_DIR [--ped PED_FILE]
 ```
 
 ### Arguments
@@ -31,7 +26,7 @@ sexcheck -i INPUT_FILE -o OUTPUT_DIR [--ped PED_FILE]
 
 ### Input Format Requirements
 
-- **Genomic Data**: Any format supported by [snputils](https://github.com/AI-sandbox/snputils)
+- **Genomic Data**: `.vcf` or `.vcf.gz` 
 - **PED File**: Tab-separated file with at least two columns:
   - 'Individual ID': Sample identifiers matching those in the genomic data
   - 'Gender': Sex information coded as 1 (male) or 2 (female)
@@ -49,20 +44,19 @@ sexcheck -i INPUT_FILE -o OUTPUT_DIR [--ped PED_FILE]
   
   Columns related to Y chromosome have been skipped. 
 - `results.nosex`: List of samples with no sex information
-- `info.json`: Statistics about the analysis run
 - `sexcheck.log`: Detailed log of the analysis process
 
 ## Example
 
 ```bash
-sexcheck -i samples.vcf.gz -o results --ped samples.ped
+sex-check -i samples.vcf.gz -o results --ped samples.ped
 ```
 
 ## Dependencies
 
-- [snputils](https://github.com/AI-sandbox/snputils): For reading and processing genomic data
-- pandas: For data manipulation
-- ONNX: For model inference
+- **pandas**: Data manipulation and file I/O
+- **numpy**: Numerical computations
+- **GCC compiler**: Required to compile the C-based VCF processor
 
 ## License
 

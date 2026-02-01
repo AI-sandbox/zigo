@@ -9,7 +9,15 @@ def format_sexcheck_report(
     pedsex: Optional[dict] = None
 ) -> Tuple[str, str]:
     """
-    Formats inference outputs into a PLINK2-style .sexcheck and .nosex report.
+    Formats inference outputs into PLINK2-style reports.
+    
+    Parameters:
+        outputs: Tuple of (predictions, probabilities) from inference
+        sample_ids: List of sample identifiers
+        pedsex: Dictionary mapping sample IDs to known sex labels
+    
+    Returns:
+        Tuple of (sexcheck_report, nosex_report) as formatted strings
     """
     sex_pred = outputs[0]
     probabilities = outputs[1]
@@ -56,9 +64,9 @@ _POLY_TOKEN_RE = re.compile(r"x(\d+)(?:\^(\d+))?")
 
 def _eval_poly_feature(X: np.ndarray, name: str) -> np.ndarray:
     """
-    Evalúa una feature tipo:
+    Evaluates a polynomial feature like:
         "1", "x0", "x1", "x2", "x0^2", "x0 x1", "x1^2", "x2^2", ...
-    en modo vectorizado sobre X (N,3).
+    in vectorized mode over X (N,3).
     """
     name = name.strip()
     n = X.shape[0]
@@ -69,7 +77,7 @@ def _eval_poly_feature(X: np.ndarray, name: str) -> np.ndarray:
     for tok in name.split():
         m = _POLY_TOKEN_RE.fullmatch(tok)
         if m is None:
-            raise ValueError(f"Token de feature no reconocido: {tok}")
+            raise ValueError(f"Unrecognized feature token: {tok}")
         idx = int(m.group(1))
         pow_str = m.group(2)
         power = int(pow_str) if pow_str is not None else 1
@@ -78,9 +86,14 @@ def _eval_poly_feature(X: np.ndarray, name: str) -> np.ndarray:
 
 def _poly_logit_from_model(X: np.ndarray, model: dict) -> np.ndarray:
     """
-    X: (N,3)
-    model: dict con keys: intercept, coefs, feature_names
-    devuelve z = intercept + sum_j coefs_j * phi_j(X)
+    Computes polynomial logit from model.
+    
+    Parameters:
+        X: Input array of shape (N,3)
+        model: Dictionary with keys: intercept, coefs, feature_names
+    
+    Returns:
+        z = intercept + sum_j coefs_j * phi_j(X)
     """
     intercept = float(model["intercept"])
     coefs = np.asarray(model["coefs"], dtype=np.float64)
@@ -94,12 +107,20 @@ def _poly_logit_from_model(X: np.ndarray, model: dict) -> np.ndarray:
     return z
 
 def parse_poly_json(model_path: str) -> dict:
-    """Carga modelo polinómico desde el JSON de distill_poly.py."""
+    """
+    Loads polynomial model from JSON file.
+    
+    Parameters:
+        model_path: Path to the model JSON file
+    
+    Returns:
+        Dictionary containing model parameters (intercept, coefs, feature_names)
+    """
     with open(model_path, "r") as f:
         d = json.load(f)
     required = {"intercept", "coefs", "feature_names"}
     if not required.issubset(d.keys()):
-        raise ValueError("JSON no parece un modelo polinómico válido.")
+        raise ValueError("JSON does not appear to be a valid polynomial model.")
     return {
         "intercept": d["intercept"],
         "coefs": d["coefs"],
@@ -108,13 +129,15 @@ def parse_poly_json(model_path: str) -> dict:
 
 def run_poly_inference(data: np.ndarray, poly_model: dict) -> Tuple[np.ndarray, np.ndarray]:
     """
-    Ejecuta inferencia con el modelo polinómico:
+    Runs inference with the polynomial model.
+    
+    The model computes:
         z = intercept + sum coefs_j * phi_j(x)
-        p_male = sigmoid(z)   # z viene de ajustar sobre p(male) del CatBoost
-    Queremos que:
+        p_male = sigmoid(z)
+    
+    Returns probabilities where:
         probabilities[:,0] = P(male)
         probabilities[:,1] = P(female)
-    para que la columna F siga siendo P(male), igual que en ONNX/symbolic.
     """
     X = data.astype(np.float64, copy=False)
     z = _poly_logit_from_model(X, poly_model)
@@ -140,7 +163,16 @@ def run_inference(
     pedsex: Optional[List[str]] = None,
 ) -> str:
     """
-    Ejecuta inferencia (ONNX, simbólica o polinómica)
+    Runs polynomial inference on the input data.
+    
+    Parameters:
+        data: Input array of zygosity counts
+        model_path: Path to the polynomial model JSON file
+        sample_ids: Optional list of sample identifiers
+        pedsex: Optional dictionary mapping sample IDs to known sex labels
+    
+    Returns:
+        Tuple of (sexcheck_report, nosex_report) as formatted strings
     """
     poly_model = parse_poly_json(model_path)
     x = data.astype(np.float64, copy=False)
