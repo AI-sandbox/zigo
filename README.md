@@ -61,3 +61,9 @@ sex-check -i samples.vcf.gz -o results --ped samples.ped
 ## License
 
 [License information]
+
+## Cite
+
+When using this software, please cite: 
+
+[Citation information]
