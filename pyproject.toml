@@ -19,8 +19,8 @@ dependencies = [
 ]
 
 [project.urls]
-"Homepage" = "https://github.com/AI-sandbox/sex-check"
-"Repository" = "https://github.com/AI-sandbox/sex-check"
+"Homepage" = "https://github.com/AI-sandbox/zigo"
+"Repository" = "https://github.com/AI-sandbox/zigo"
 
 [project.scripts]
 "zigo" = "zigo.cli:main"
