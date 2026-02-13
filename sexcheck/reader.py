@@ -5,6 +5,7 @@ import subprocess
 import tempfile
 import logging
 from typing import Tuple, Dict, List
+import snputils as su
 
 logger = logging.getLogger(__name__)
 
@@ -132,3 +133,55 @@ def read_vcf(vcf_path: str) -> Tuple[np.ndarray, VCFData, Dict]:
     finally:
         try: os.unlink(stats_file)
         except: pass
+
+def read_bed_pgen(path: str) -> Tuple[np.ndarray, VCFData, Dict]:
+    if not os.path.exists(path):
+        raise FileNotFoundError(path)
+        
+    snpobj = su.read_snp(path)
+    
+    # (variants, samples, ploidy)
+    X = snpobj.calldata_gt
+    
+    # Set anything not 0 or 1 to NaN
+    X = np.where((X == 0) | (X == 1), X, np.nan)
+    
+    # Sum across ploidy (axis 2). Propagate NaNs (matches vcf_reader.c logic where any missing allele -> missing GT)
+    # Result shape: (variants, samples) -> Transpose to (samples, variants)
+    X = X.sum(axis=2).T 
+    
+    n_samples, n_snps = X.shape
+    
+    hist = np.zeros((n_samples, 3), dtype=np.float32)
+    
+    for i in range(n_samples):
+        row = X[i, :]
+        
+        c0 = np.sum(row == 0)
+        c1 = np.sum(row == 1)
+        c2 = np.sum(row == 2)
+        
+        total = c0 + c1 + c2
+        if total > 0:
+            hist[i, 0] = c0 / total
+            hist[i, 1] = c1 / total
+            hist[i, 2] = c2 / total
+            
+    # Swap logic
+    for h in hist:
+        if h[2] == 0:
+            if h[1] > h[0]:
+                h[0], h[1] = h[1], h[0]
+        else:
+            if h[2] > h[0] and h[0] != 0:
+                h[0], h[2] = h[2], h[0]
+
+    samples = list(snpobj.samples)
+    stats = {
+        "num_samples": n_samples,
+        "num_snps_input": n_snps
+    }
+    
+    vcf_data = VCFData(samples=samples, n_samples=n_samples, n_snps=n_snps)
+    
+    return hist, vcf_data, stats

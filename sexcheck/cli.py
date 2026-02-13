@@ -7,7 +7,7 @@ import json
 import pandas as pd
 import snputils as su
 
-from sexcheck.reader import read_vcf
+from sexcheck.reader import read_vcf, read_bed_pgen
 from sexcheck.inference import run_inference
 
 MODEL_PATH = os.path.join(os.path.dirname(__file__), "models", "zigo.json")
@@ -72,7 +72,7 @@ def main() -> None:
     parser.add_argument(
         "-i", "--input", 
         required=True, 
-        help="Path to the genomic input file (.vcf or .vcf.gz)"
+        help="Path to the genomic input file (.vcf, .vcf.gz, .bed, .pgen)"
     )
     parser.add_argument(
         "-o", "--output", 
@@ -96,9 +96,12 @@ def main() -> None:
     start_time = time.time()
     
     try:
-        transformed_data, vcf_data, stats = read_vcf(input_file)
+        if input_file.endswith((".vcf", ".vcf.gz")):
+            transformed_data, vcf_data, stats = read_vcf(input_file)
+        else:
+            transformed_data, vcf_data, stats = read_bed_pgen(input_file)
     except Exception as e:
-        logger.error(f"Failed to process VCF: {e}")
+        logger.error(f"Failed to process input file: {e}")
         sys.exit(1)
     
     logger.info(f"File processed in {time.time() - start_time:.4f} seconds.")
