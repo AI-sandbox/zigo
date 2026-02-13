@@ -54,16 +54,15 @@ sex-check -i samples.vcf.gz -o results --ped samples.ped
 
 ## Dependencies
 
-- **pandas**: Data manipulation and file I/O
-- **numpy**: Numerical computations
+- **snputils**: For input processing
 - **GCC compiler**: Required to compile the C-based VCF processor
 
 ## License
 
-[License information]
+This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENSE) file for details.
 
 ## Cite
 
-When using this software, please cite: 
+When using this software, please cite us. 
 
-[Citation information]
+_Preprint coming soon!_

@@ -5,6 +5,7 @@ import time
 import logging
 import json
 import pandas as pd
+import snputils as su
 
 from sexcheck.reader import read_vcf
 from sexcheck.inference import run_inference
