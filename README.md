@@ -19,7 +19,7 @@ pip install git+https://github.com/AI-sandbox/sex-check.git
 ## Usage
 
 ```bash:sex-check/README.md
-sex-check -i INPUT_FILE -o OUTPUT_DIR [--ped PED_FILE]
+zigo -i INPUT_FILE -o OUTPUT_DIR [--ped PED_FILE]
 ```
 
 ### Arguments

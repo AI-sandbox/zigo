@@ -7,8 +7,8 @@ import json
 import pandas as pd
 import snputils as su
 
-from sexcheck.reader import read_vcf, read_bed_pgen
-from sexcheck.inference import run_inference
+from zigo.reader import read_vcf, read_bed_pgen
+from zigo.inference import run_inference
 
 MODEL_PATH = os.path.join(os.path.dirname(__file__), "models", "zigo.json")
 
