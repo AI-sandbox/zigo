@@ -7,7 +7,7 @@ A command-line tool for sex inference from genomic data. This tool uses a distil
 We are working on publishing this package to PyPI. In the meantime, you can install the latest version directly from the repository using `pip`:
 
 ```bash
-pip install git+https://github.com/AI-sandbox/sex-check.git
+pip install git+https://github.com/AI-sandbox/zigo.git
 ```
 
 ## Key Features
