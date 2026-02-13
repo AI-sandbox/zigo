@@ -4,7 +4,11 @@ A command-line tool for sex inference from genomic data. This tool uses a distil
 
 ## Installation
 
-Installation instructions will be added soon
+We are working on publishing this package to PyPI. In the meantime, you can install the latest version directly from the repository using `pip`:
+
+```bash
+pip install git+https://github.com/AI-sandbox/sex-check.git
+```
 
 ## Key Features
 
@@ -20,16 +24,18 @@ sex-check -i INPUT_FILE -o OUTPUT_DIR [--ped PED_FILE]
 
 ### Arguments
 
-- `-i, --input`: Path to the genomic input file (.vcf, .pgen, etc.)
+- `-i, --input`: Path to the genomic input file (.vcf, .vcf.gz, .bed, .pgen)
 - `-o, --output`: Directory for saving results
 - `--ped`: (Optional) Path to the PED file containing 'Individual ID' and 'Gender' columns
 
 ### Input Format Requirements
 
-- **Genomic Data**: `.vcf` or `.vcf.gz` 
+- **Genomic Data**: Supports `.bed`, `.pgen`, and includes a high-performance C-based reader for `.vcf` and `.vcf.gz`.
 - **PED File**: Tab-separated file with at least two columns:
   - 'Individual ID': Sample identifiers matching those in the genomic data
   - 'Gender': Sex information coded as 1 (male) or 2 (female)
+
+
 
 ### Output Files
 
@@ -46,23 +52,26 @@ sex-check -i INPUT_FILE -o OUTPUT_DIR [--ped PED_FILE]
 - `results.nosex`: List of samples with no sex information
 - `sexcheck.log`: Detailed log of the analysis process
 
-## Example
-
-```bash
-sex-check -i samples.vcf.gz -o results --ped samples.ped
-```
-
-## Dependencies
-
-- **snputils**: For input processing
-- **GCC compiler**: Required to compile the C-based VCF processor
-
 ## License
 
 This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENSE) file for details.
 
 ## Cite
 
-When using this software, please cite us. 
+If you use **Zigo** in your research, please cite the source code.
 
-_Preprint coming soon!_
+> 📝 **Note:** Preprint will be published soon! Once published, we will update this section with the official citation.
+
+In the meantime, please cite the repository as follows:
+
+**BibTeX:**
+
+```bibtex
+@misc{zigo_2026,
+  author = {Oscar Molina-Sedano, Daniel Mas Montserrat and Alexander Ioannidis},
+  title = {Zigo: Sex Checking by Zigosity Distributions},
+  year = {2026},
+  publisher = {GitHub},
+  journal = {GitHub repository},
+  howpublished = {\url{[https://github.com/AI-sandbox/sex-check](https://github.com/AI-sandbox/sex-check)}}
+}
