@@ -58,20 +58,16 @@ This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENS
 
 ## Cite
 
-If you use **Zigo** in your research, please cite the source code.
-
-> 📝 **Note:** Preprint will be published soon! Once published, we will update this section with the official citation.
-
-In the meantime, please cite the repository as follows:
+If you use **Zigo** in your research, please cite [our paper](https://www.biorxiv.org/content/10.64898/2026.03.15.711924v1).
 
 **BibTeX:**
 
 ```bibtex
-@misc{zigo_2026,
-  author = {Oscar Molina-Sedano, Daniel Mas Montserrat and Alexander Ioannidis},
-  title = {Zigo: Sex Checking by Zigosity Distributions},
-  year = {2026},
-  publisher = {GitHub},
-  journal = {GitHub repository},
-  howpublished = {\url{[https://github.com/AI-sandbox/sex-check](https://github.com/AI-sandbox/sex-check)}}
+@article {zigo2026,
+	author = {Molina-Sedano, Oscar and Mas Montserrat, Daniel and Ioannidis, Alexander G.},
+	title = {Sex checking by zygosity distributions},
+	year = {2026},
+	doi = {10.64898/2026.03.15.711924},
+	URL = {https://www.biorxiv.org/content/early/2026/03/18/2026.03.15.711924},
+	journal = {bioRxiv}
 }
